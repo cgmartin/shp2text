@@ -1,8 +1,17 @@
+= shp2text =
+
+This utility dumps shapesfiles and associated data into various formats.
+It was created specifically because of a desire to dump data into
+Google Maps.
+
+Original author's website:
+ http://www.obviously.com/gis/shp2text/
+
 == Install ==
  * run "make" to generate shp2text binary
  
-== Mac OSx 10.5.8 ==
- * Compilation Doesn't (yet) work
+== Mac OSx 10.8.0 ==
+ * Compilation has some warnings. Binary seems to work.
  
 == Ubuntu ==
  * Binaries work just fine (already included)
@@ -10,3 +19,12 @@
  
 == Windows ==
  * TODO
+
+== Dependencies ==
+
+Requires shapefil.h from the Shapefile C Library 
+
+ http://shapelib.maptools.org/
+ (v1.2.10 has been included in this project)
+
+
