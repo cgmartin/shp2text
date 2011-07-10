@@ -2,7 +2,7 @@
 #define _SHAPEFILE_H_INCLUDED
 
 /******************************************************************************
- * $Id: shapefil.h,v 1.25 2002/05/07 13:46:30 warmerda Exp $
+ * $Id: shapefil.h,v 1.26 2002/09/29 00:00:08 warmerda Exp $
  *
  * Project:  Shapelib
  * Purpose:  Primary include file for Shapelib.
@@ -37,6 +37,9 @@
  ******************************************************************************
  *
  * $Log: shapefil.h,v $
+ * Revision 1.26  2002/09/29 00:00:08  warmerda
+ * added FTLogical and logical attribute read/write calls
+ *
  * Revision 1.25  2002/05/07 13:46:30  warmerda
  * added DBFWriteAttributeDirectly().
  *
@@ -406,6 +409,7 @@ typedef enum {
   FTString,
   FTInteger,
   FTDouble,
+  FTLogical,
   FTInvalid
 } DBFFieldType;
 
@@ -437,6 +441,8 @@ double 	SHPAPI_CALL
       DBFReadDoubleAttribute( DBFHandle hDBF, int iShape, int iField );
 const char SHPAPI_CALL1(*)
       DBFReadStringAttribute( DBFHandle hDBF, int iShape, int iField );
+const char SHPAPI_CALL1(*)
+      DBFReadLogicalAttribute( DBFHandle hDBF, int iShape, int iField );
 int     SHPAPI_CALL
       DBFIsAttributeNULL( DBFHandle hDBF, int iShape, int iField );
 
@@ -452,6 +458,9 @@ int SHPAPI_CALL
 int SHPAPI_CALL
      DBFWriteNULLAttribute( DBFHandle hDBF, int iShape, int iField );
 
+int SHPAPI_CALL
+     DBFWriteLogicalAttribute( DBFHandle hDBF, int iShape, int iField,
+			       const char lFieldValue);
 int SHPAPI_CALL
      DBFWriteAttributeDirectly(DBFHandle psDBF, int hEntity, int iField,
                                void * pValue );
