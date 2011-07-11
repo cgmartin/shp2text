@@ -5,7 +5,7 @@
  * Purpose:  Dump shapefile and database contents into text formats
  * Author:   Bryce Nessbitt, based on work of Frank Warmerdam, warmerdam@pobox.com
  *
- * Bugs:	 TODO:: Exports illegal characters to xml (e.g. &)
+ * Bugs:     TODO:: Exports illegal characters to xml (e.g. &)
  *
  ******************************************************************************
  * Copyright (c) 1999, Frank Warmerdam
@@ -47,13 +47,13 @@ static char rcsid[] =
 int main( int argc, char ** argv )
 
 {
-    SHPHandle	hSHP;
+    SHPHandle   hSHP;
     DBFHandle   hDBF;
 
-    int		nShapeType, nEntities, i, iPart, nInvalidCount=0;
+    int     nShapeType, nEntities, i, iPart, nInvalidCount=0;
     char * bFormat;
-    const char 	*pszPlus;
-    double 	adfMinBound[4], adfMaxBound[4];
+    const char  *pszPlus;
+    double  adfMinBound[4], adfMaxBound[4];
     int     *panWidth, iRecord;
     char    szFormat[32], *pszFilename = NULL;
     int     nWidth, nDecimals;
@@ -92,21 +92,41 @@ int main( int argc, char ** argv )
         argc--;
         if( argc == 4 )
         {
-        argNameField  = atoi(argv[2]);
-        argAttributeField = atoi(argv[3]);
+            argNameField  = atoi(argv[2]);
+            argAttributeField = atoi(argv[3]);
         } else {
-        printf( "shp2text --gpx shape_file.shp name_field# attribute_field#\n" );
-        printf( ";utility to dump esri shapefiles into various text formats\n");
-        printf( ";you must supply two field numbers\n");
-        if( argc < 2 ) {
-            exit( 5 );
+            printf( "shp2text --gpx shape_file.shp name_field# attribute_field#\n" );
+            printf( ";utility to dump esri shapefiles into various text formats\n");
+            printf( ";you must supply two field numbers\n");
+            if( argc < 2 ) {
+                exit( 5 );
             }
-        bFormat = "fields";     // Try to print field numbers if a filename was given
+            bFormat = "fields";     // Try to print field numbers if a filename was given
         }
+    }
+    else if( argc > 1 && strcmp(argv[1],"--json") == 0 )
+    {
+        bFormat = "json";
+        argv++;
+        argc--;
+        if( argc == 4 )
+        {
+            argNameField  = atoi(argv[2]);
+            argAttributeField = atoi(argv[3]);
+        } else {
+            printf( "shp2text --json shape_file.shp name_field# attribute_field#\n" );
+            printf( ";utility to dump esri shapefiles into various text formats\n");
+            printf( ";you must supply two field numbers\n");
+            if( argc < 2 ) {
+                exit( 5 );
+            }
+            bFormat = "fields";     // Try to print field numbers if a filename was given
+        }
+
     }
     else if( argc != 2 )
     {
-        printf( "shp2text [--gpx][--spreadsheet][--geo.position] shape_file.shp\n" );
+        printf( "shp2text [--gpx][--json][--spreadsheet][--geo.position] shape_file.shp\n" );
         printf( ";utility to dump esri shapefiles into various text formats\n");
         exit( 5 );
     }
@@ -118,15 +138,15 @@ int main( int argc, char ** argv )
     hSHP = SHPOpen( argFilename, "rb" );
     if( hSHP == NULL )
     {
-	printf( "Unable to open shapefile: %s\n", argFilename );
-	exit( 1 );
+        printf( "Unable to open shapefile: %s\n", argFilename );
+        exit( 1 );
     }
 
     hDBF = DBFOpen( argv[1], "rb" );
     if( hDBF == NULL )
     {
-    printf( "Unable to open shapefile database: %s\n", argFilename );
-    exit( 2 );
+        printf( "Unable to open shapefile database: %s\n", argFilename );
+        exit( 2 );
     }
 
 /* -------------------------------------------------------------------- */
@@ -145,6 +165,18 @@ int main( int argc, char ** argv )
                 adfMinBound[1],adfMinBound[0],adfMaxBound[1],adfMaxBound[0] );
         printf( "<name>%s</name>\n", argFilename );
             
+    }
+    else if ( bFormat == "json" )
+    {
+        printf( "{\n" );
+        printf( "    \"name\": \"%s\",\n", argFilename );
+        printf( "    \"bounds\": {\n" );
+        printf( "        \"minlat\": %12.8f,\n", adfMinBound[1] );
+        printf( "        \"minlon\": %12.8f,\n", adfMinBound[0] );
+        printf( "        \"maxlat\": %12.8f,\n", adfMaxBound[1] );
+        printf( "        \"maxlon\": %12.8f\n", adfMaxBound[0] );
+        printf( "    },\n" );
+        printf( "    \"shapes\": [\n" );
     }
     else if (  bFormat == "spreadsheet" )
     {
@@ -210,28 +242,47 @@ int main( int argc, char ** argv )
 /* -------------------------------------------------------------------- */
     for( iRecord = 0; iRecord < nEntities; iRecord++ )
     {
-	int		j;
-    SHPObject	*psShape;
-    char    iRoutePart = 'a';
+        int     j;
+        SHPObject   *psShape;
+        char    iRoutePart = 'a';
+        int     iCurVert   = 0;
 
-	psShape = SHPReadObject( hSHP, iRecord );
+        psShape = SHPReadObject( hSHP, iRecord );
 
-    /*  Print header for each new shape */
-    if( bFormat == "gpx" && psShape->nVertices > 1)
-    {
-        printf( "\n<rte>" );
-        printf( "<number>%d</number>",iRecord);
-        temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
-        if( temp1 ) {
-            temp2 = strchr(temp1,'&');      // Search for illegal xml character
-            if( temp2 ) { *temp2 = '-'; }   // Convert & to -
-            printf( "<name>%s</name>",    temp1);
+        /*  Print header for each new shape */
+        if( bFormat == "gpx" && psShape->nVertices > 1)
+        {
+            printf( "\n<rte>" );
+            printf( "<number>%d</number>",iRecord);
+            temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
+            if( temp1 ) {
+                temp2 = strchr(temp1,'&');      // Search for illegal xml character
+                if( temp2 ) { *temp2 = '-'; }   // Convert & to -
+                printf( "<name>%s</name>",    temp1);
+            }
+            printf( "<cmt>%s</cmt>",      DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+            printf( "\n" );
         }
-        printf( "<cmt>%s</cmt>",      DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
-        printf( "\n" );
-    }
-    else if (  bFormat == "geo.position" )
-    {
+        else if ( bFormat == "json" )
+        {
+            if ( iRecord > 0 ) { 
+                printf( ", " ); 
+            } else {
+                printf( "        ");
+            }
+            printf( "{\n" );
+            printf( "            \"groupId\": %d,\n", iRecord );
+            temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
+            if( temp1 ) {
+                temp2 = strchr(temp1, '&');      // Search for illegal xml character
+                if( temp2 ) { *temp2 = '-'; }   // Convert & to -
+                printf( "            \"name\": \"%s\",\n", temp1 );
+            }
+            printf( "            \"desc\": \"%s\",\n", DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+            printf( "            \"vertices\": [\n" );
+        }
+        else if (  bFormat == "geo.position" )
+        {
             if( psShape->nVertices == 1 )
             {
                 printf("  <meta name=\"geo.position\" content=\"");
@@ -239,107 +290,134 @@ int main( int argc, char ** argv )
             {
                 printf("  <meta name=\"geo.polyline\" content=\"");
             }
-    }
-    else if (  bFormat == "spreadsheet" )
-    {
-    }
-    else if (  bFormat == "text" )
-    {
-        printf( "\nShape:%d (%s)  nVertices=%d, nParts=%d\n"
+        }
+        else if (  bFormat == "spreadsheet" )
+        {
+        }
+        else if (  bFormat == "text" )
+        {
+            printf( "\nShape:%d (%s)  nVertices=%d, nParts=%d\n"
                     "  Bounds:(%12.6f,%12.6f, %g, %g)\n"
                     "      to (%12.6f,%12.6f, %g, %g)\n",
-                i, SHPTypeName(psShape->nSHPType),
+                    i, SHPTypeName(psShape->nSHPType),
                     psShape->nVertices, psShape->nParts,
                     psShape->dfXMin, psShape->dfYMin,
                     psShape->dfZMin, psShape->dfMMin,
                     psShape->dfXMax, psShape->dfYMax,
                     psShape->dfZMax, psShape->dfMMax );
-    }
+        }
 
-    /*  Print each sub vertex in current shape */
-    for( j = 0, iPart = 1; j < psShape->nVertices; j++ )
-    {
-            const char	*pszPartType = "";
+        /*  Print each sub vertex in current shape */
+        for( j = 0, iPart = 1; j < psShape->nVertices; j++ )
+        {
+            const char  *pszPartType = "";
 
             if( j == 0 && psShape->nParts > 0 )
                 pszPartType = SHPPartTypeName( psShape->panPartType[0] );
-            
-        if( iPart < psShape->nParts
-                && psShape->panPartStart[iPart] == j )
-        {
-                pszPartType = SHPPartTypeName( psShape->panPartType[iPart] );
-        iPart++;
-        pszPlus = "+";
 
-            if( bFormat == "gpx" )
+            if( iPart < psShape->nParts
+                    && psShape->panPartStart[iPart] == j )
             {
-            temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
-            printf( "</rte>\n");
-            printf( "<rte>");
-            printf( "<number>%d</number>",iRecord);
-            if( temp1 ){
-                temp2 = strchr(temp1,'&');      // Search for illegal xml character
-                if( temp2 ) { *temp2 = '-'; }   // Convert & to -
-                printf( "<name>%s</name>",    temp1 );
+                pszPartType = SHPPartTypeName( psShape->panPartType[iPart] );
+                iPart++;
+                pszPlus = "+";
+
+                if( bFormat == "gpx" )
+                {
+                    temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
+                    printf( "</rte>\n");
+                    printf( "<rte>");
+                    printf( "<number>%d</number>",iRecord);
+                    if( temp1 ){
+                        temp2 = strchr(temp1,'&');      // Search for illegal xml character
+                        if( temp2 ) { *temp2 = '-'; }   // Convert & to -
+                        printf( "<name>%s</name>",    temp1 );
+                    }
+                    printf( "<cmt>%s</cmt>\n",    DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+                } 
+                else if (bFormat == "json")
+                {        
+                    printf( "\n            ]\n" );
+                    printf( "        }, {\n" );
+                    printf( "            \"groupId\": %d,\n", iRecord );
+                    temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
+                    if( temp1 ) {
+                        temp2 = strchr(temp1, '&');      // Search for illegal xml character
+                        if( temp2 ) { *temp2 = '-'; }   // Convert & to -
+                        printf( "            \"name\": \"%s\",\n", temp1 );
+                    }
+                    printf( "            \"desc\": \"%s\",\n", DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+                    printf( "            \"vertices\": [\n" );
+                    iCurVert = 0;
                 }
-            printf( "<cmt>%s</cmt>\n",    DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+            }
+            else
+                pszPlus = " ";
+
+            if( bFormat == "gpx" && psShape->nVertices > 1)
+            {
+                printf(" <rtept lat=\"%12.8f\" lon=\"%12.8f\"></rtept>\n", psShape->padfY[j],psShape->padfX[j]);
             }        
+            else if( bFormat == "gpx" )
+            {
+                temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
+
+                printf("<wpt lat=\"%12.8f\" lon=\"%12.8f\">", psShape->padfY[j],psShape->padfX[j]);
+                if( temp1 ) {
+                    temp2 = strchr(temp1,'&');      // Search for illegal xml character
+                    if( temp2 ) { *temp2 = '-'; }   // Convert & to -
+                    printf("<name>%s</name>",temp1);
+                }
+                printf("<sym>%s</sym>",  DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
+                printf("</wpt>\n");
+            }
+            else if( bFormat == "json" )
+            {
+                if( iCurVert > 0 ) { printf( ",\n" ); }
+                printf( "                { \"lat\": %12.8f, \"lon\": %12.8f }", psShape->padfY[j], psShape->padfX[j] );
+                iCurVert++;
+            }        
+            else if (  bFormat == "geo.position" )
+            {
+                printf("%12.8f;%12.8f ", psShape->padfY[j],psShape->padfX[j]);
+            }
+            else if (  bFormat == "spreadsheet" )
+            {
+                printf("%d\t%12.8f\t%12.8f\t%g\t%g\t",
+                        iRecord,psShape->padfX[j],psShape->padfY[j],psShape->padfZ[j],psShape->padfM[j]);
+                for( i = 0; i < DBFGetFieldCount(hDBF); i++ )
+                {
+                    printf( "%s\t", DBFReadStringAttribute( hDBF, iRecord, i ));
+                }
+                printf("\n");
+            }
+            else if (  bFormat == "text" )
+            {
+                printf("   %s (%12.8f,%12.8f, %g, %g) %s \n",
+                        pszPlus,
+                        psShape->padfX[j],
+                        psShape->padfY[j],
+                        psShape->padfZ[j],
+                        psShape->padfM[j],
+                        pszPartType );
+            }
         }
-        else
-            pszPlus = " ";
+
+        SHPDestroyObject( psShape );
 
         if( bFormat == "gpx" && psShape->nVertices > 1)
         {
-            printf(" <rtept lat=\"%12.8f\" lon=\"%12.8f\"></rtept>\n", psShape->padfY[j],psShape->padfX[j]);
-        }        
-        else if( bFormat == "gpx" )
-        {
-            temp1 = (char *)DBFReadStringAttribute( hDBF, iRecord, argNameField );
-
-            printf("<wpt lat=\"%12.8f\" lon=\"%12.8f\">", psShape->padfY[j],psShape->padfX[j]);
-            if( temp1 ) {
-                temp2 = strchr(temp1,'&');      // Search for illegal xml character
-                if( temp2 ) { *temp2 = '-'; }   // Convert & to -
-                printf("<name>%s</name>",temp1);
-            }
-            printf("<sym>%s</sym>",  DBFReadStringAttribute( hDBF, iRecord, argAttributeField ));
-            printf("</wpt>\n");
+            printf( "</rte>\n");
         }
-        else if (  bFormat == "geo.position" )
+        else if ( bFormat == "json" )
         {
-            printf("%12.8f;%12.8f ", psShape->padfY[j],psShape->padfX[j]);
-        }
-        else if (  bFormat == "spreadsheet" )
+            printf( "\n            ]\n" );
+            printf( "        }" );
+        } 
+        else if ( bFormat == "geo.position" )
         {
-            printf("%d\t%12.8f\t%12.8f\t%g\t%g\t",
-                   iRecord,psShape->padfX[j],psShape->padfY[j],psShape->padfZ[j],psShape->padfM[j]);
-            for( i = 0; i < DBFGetFieldCount(hDBF); i++ )
-            {
-                printf( "%s\t", DBFReadStringAttribute( hDBF, iRecord, i ));
-            }
-            printf("\n");
+            printf("\" />\n");
         }
-        else if (  bFormat == "text" )
-        {
-            printf("   %s (%12.8f,%12.8f, %g, %g) %s \n",
-                       pszPlus,
-                       psShape->padfX[j],
-                       psShape->padfY[j],
-                       psShape->padfZ[j],
-                       psShape->padfM[j],
-                       pszPartType );
-        }
-    }
-
-    SHPDestroyObject( psShape );
-
-    if( bFormat == "gpx" && psShape->nVertices > 1)
-    {
-        printf( "</rte>\n");
-    } else if ( bFormat == "geo.position" )
-    {
-        printf("\" />\n");
-    }
     }   /* end record */
 
     SHPClose( hSHP );
@@ -347,6 +425,11 @@ int main( int argc, char ** argv )
     if( bFormat == "gpx" )
     {
         printf( "</gpx>\n");
+    }
+    else if( bFormat == "json" )
+    {
+        printf( "\n    ]\n" );
+        printf( "}\n" );
     }
 
 #ifdef USE_DBMALLOC
